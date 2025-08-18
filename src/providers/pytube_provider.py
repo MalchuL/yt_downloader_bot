@@ -35,10 +35,11 @@ class PytubeProvider(DownloadProvider):
         """Checks if the pytube library can be imported."""
         try:
             import pytube
-            logger.info(f"[{self.name}] Health check passed.")
+
+            logger.info("[%s] Health check passed.", self.name)
             return True
         except ImportError:
-            logger.error(f"[{self.name}] Health check failed: pytube library not found.")
+            logger.error("[%s] Health check failed: pytube library not found.", self.name)
             return False
 
     def supports(self, url: str) -> bool:
@@ -57,18 +58,30 @@ class PytubeProvider(DownloadProvider):
                 thumbnails=[yt.thumbnail_url] if yt.thumbnail_url else [],
             )
         except PytubeError as e:
-            logger.error(f"[{self.name}] Pytube error fetching metadata for {url}: {e}")
-            raise IOError(f"Could not fetch video metadata. The video may be private or unavailable.") from e
+            logger.error(
+                "[%s] Pytube error fetching metadata for %s: %s", self.name, url, e
+            )
+            raise IOError(
+                f"Could not fetch video metadata. The video may be private or unavailable."
+            ) from e
 
     def list_qualities(self, url: str) -> Iterable[QualityOption]:
         """Lists available progressive MP4 qualities for a YouTube video."""
         try:
             yt = YouTube(url)
             # Filter for progressive mp4 streams and order by resolution descending
-            streams = yt.streams.filter(progressive=True, file_extension="mp4").order_by("resolution").desc()
+            streams = (
+                yt.streams.filter(progressive=True, file_extension="mp4")
+                .order_by("resolution")
+                .desc()
+            )
         except PytubeError as e:
-            logger.error(f"[{self.name}] Pytube error listing qualities for {url}: {e}")
-            raise IOError(f"Could not fetch video qualities. The video may be private or unavailable.") from e
+            logger.error(
+                "[%s] Pytube error listing qualities for %s: %s", self.name, url, e
+            )
+            raise IOError(
+                f"Could not fetch video qualities. The video may be private or unavailable."
+            ) from e
 
         qualities = []
         if streams:
@@ -134,7 +147,7 @@ class PytubeProvider(DownloadProvider):
             yt.register_on_progress_callback(None)  # Unregister callback
             return output_path
         except PytubeError as e:
-            logger.error(f"[{self.name}] Pytube error downloading {url}: {e}")
+            logger.error("[%s] Pytube error downloading %s: %s", self.name, url, e)
             raise IOError(f"Failed to download video. Please try again.") from e
 
 

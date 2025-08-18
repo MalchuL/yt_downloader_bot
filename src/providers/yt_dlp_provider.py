@@ -28,10 +28,10 @@ class YtDlpProvider(DownloadProvider):
         try:
             with yt_dlp.YoutubeDL(self._ydl_opts_base) as ydl:
                 pass
-            logger.info(f"[{self.name}] Health check passed.")
+            logger.info("[%s] Health check passed.", self.name)
             return True
         except Exception as e:
-            logger.error(f"[{self.name}] Health check failed: {e}")
+            logger.error("[%s] Health check failed: %s", self.name, e)
             return False
 
     def supports(self, url: str) -> bool:

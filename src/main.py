@@ -4,35 +4,54 @@ import logging
 from aiogram import Bot, Dispatcher
 
 from src.bot.handlers import router as bot_router
+from src.bot.middleware import RequestIdMiddleware
 from src.core.config import settings
+from src.core.limiter import limiter
 from src.core.provider_factory import get_provider
+from src.core.request_context import REQUEST_ID_VAR
+
+
+class RequestIdFilter(logging.Filter):
+    """A logging filter to inject the request_id from a context variable."""
+
+    def filter(self, record):
+        record.request_id = REQUEST_ID_VAR.get()
+        return True
 
 
 async def main():
     """
     The main entry point for the bot application.
     """
-    # Set up logging
+    # Set up logging with request_id
     logging.basicConfig(
         level=settings.LOG_LEVEL,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        format="%(asctime)s - [%(request_id)s] - %(name)s - %(levelname)s - %(message)s",
     )
+    # Add our custom filter to all root handlers
+    for handler in logging.getLogger().handlers:
+        handler.addFilter(RequestIdFilter())
+
     logger = logging.getLogger(__name__)
 
     # Instantiate the download provider
     try:
         provider = get_provider()
-        logger.info(f"Using download provider: {settings.DOWNLOADER_PROVIDER}")
+        logger.info("Using download provider: %s", settings.DOWNLOADER_PROVIDER)
     except (ValueError, RuntimeError) as e:
-        logger.error(f"Failed to initialize download provider: {e}")
+        logger.error("Failed to initialize download provider: %s", e)
         return
 
     # Initialize bot and dispatcher
     bot = Bot(token=settings.BOT_TOKEN)
     dp = Dispatcher()
 
-    # Pass the provider instance to the handlers
+    # Register middleware for all updates
+    dp.update.middleware(RequestIdMiddleware())
+
+    # Pass the provider and limiter instances to the handlers
     dp["provider"] = provider
+    dp["limiter"] = limiter
 
     # Include the main router
     dp.include_router(bot_router)
@@ -48,4 +67,4 @@ if __name__ == "__main__":
     except (KeyboardInterrupt, SystemExit):
         logging.info("Bot stopped.")
     except Exception as e:
-        logging.critical(f"Bot failed to start: {e}", exc_info=True)
+        logging.critical("Bot failed to start: %s", e, exc_info=True)

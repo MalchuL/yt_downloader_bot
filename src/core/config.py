@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     """
 
     # Core bot settings
-    BOT_TOKEN: str
+    BOT_TOKEN: Optional[str] = None
     DOWNLOADER_PROVIDER: str = "yt_dlp"
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
 
