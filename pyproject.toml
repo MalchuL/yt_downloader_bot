@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "telegram-video-downloader"
+version = "0.1.0"
+description = "A Telegram bot to download videos from various sources."
+authors = ["Jules <agent@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+aiogram = "^3.5.0"
+yt-dlp = "^2024.4.9"
+pytube = "^15.0.0"
+python-dotenv = "^1.0.1"
+pydantic = "^2.7.1"
+pydantic-settings = "^2.2.1"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.4.4"
+black = "^24.4.2"
+mypy = "^1.10.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 88
+
+[tool.black]
+line-length = 88
+
+[tool.mypy]
+strict = true
+ignore_missing_imports = true
+warn_unused_ignores = true
+show_error_codes = true
+pretty = true

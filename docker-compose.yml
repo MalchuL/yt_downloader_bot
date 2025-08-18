@@ -1,0 +1,8 @@
+services:
+  bot:
+    build: .
+    volumes:
+      - ./src:/app/src
+    env_file:
+      - .env
+    command: poetry run python src/main.py
