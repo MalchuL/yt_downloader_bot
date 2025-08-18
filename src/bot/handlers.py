@@ -57,13 +57,18 @@ async def health_handler(message: Message, provider: DownloadProvider):
         await message.answer(f"Provider '{provider.name}' is unhealthy.")
 
 
+from src.bot.search_handler import handle_search
+from src.observers.interface import Observer
+
+
 @router.message(F.text)
-async def url_handler(
+async def message_handler(
     message: Message,
     state: FSMContext,
     provider: DownloadProvider,
     bot: Bot,
     limiter: ConcurrencyLimiter,
+    observer: Observer,
 ):
     if limiter.chat_semaphores[message.chat.id].locked():
         await message.reply(
@@ -73,7 +78,7 @@ async def url_handler(
 
     match = URL_PATTERN.search(message.text)
     if not match:
-        # Avoid replying if the message is just text without a URL
+        await handle_search(message, bot, observer, state)
         return
 
     url = match.group(0)

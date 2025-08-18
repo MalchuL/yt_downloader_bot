@@ -4,11 +4,13 @@ import logging
 from aiogram import Bot, Dispatcher
 
 from src.bot.handlers import router as bot_router
+from src.bot.search_handler import router as search_router
 from src.bot.middleware import RequestIdMiddleware
 from src.core.config import settings
 from src.core.limiter import limiter
 from src.core.provider_factory import get_provider
 from src.core.request_context import REQUEST_ID_VAR
+from src.observers.youtube_search import YouTubeSearch
 
 
 class RequestIdFilter(logging.Filter):
@@ -49,12 +51,17 @@ async def main():
     # Register middleware for all updates
     dp.update.middleware(RequestIdMiddleware())
 
-    # Pass the provider and limiter instances to the handlers
+    # Instantiate the observer
+    observer = YouTubeSearch()
+
+    # Pass the provider, limiter and observer instances to the handlers
     dp["provider"] = provider
     dp["limiter"] = limiter
+    dp["observer"] = observer
 
-    # Include the main router
+    # Include the routers
     dp.include_router(bot_router)
+    dp.include_router(search_router)
 
     # Start polling
     logger.info("Starting bot...")

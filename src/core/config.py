@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # Telegram limits
     MAX_TELEGRAM_FILESIZE_MB: int = 48  # Default to slightly under 50MB for safety
 
+    # Search settings
+    YOUTUBE_SEARCH_RESULTS_LIMIT: int = 5
+
     # Network settings
     HTTP_PROXY: Optional[str] = None
     HTTPS_PROXY: Optional[str] = None
