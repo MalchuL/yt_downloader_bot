@@ -4,7 +4,7 @@ from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from src.providers.interface import QualityOption
+from telegram_video_downloader.providers.interface import QualityOption
 
 
 class QualityCallback(CallbackData, prefix="quality"):

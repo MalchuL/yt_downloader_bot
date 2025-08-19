@@ -3,7 +3,7 @@ from collections import defaultdict
 from contextlib import asynccontextmanager
 from typing import Dict
 
-from src.core.config import settings
+from telegram_video_downloader.core.config import settings
 
 
 class ConcurrencyLimiter:

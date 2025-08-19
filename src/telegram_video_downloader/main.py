@@ -3,25 +3,25 @@ import logging
 
 from aiogram import Bot, Dispatcher
 
-from src.bot.handlers import router as bot_router
-from src.bot.search_handler import router as search_router
-from src.bot.middleware import RequestIdMiddleware
-from src.core.config import settings
-from src.core.limiter import limiter
-from src.core.provider_factory import get_provider
-from src.core.request_context import REQUEST_ID_VAR
-from src.observers.youtube_search import YouTubeSearch
+from telegram_video_downloader.bot.handlers import router as bot_router
+from telegram_video_downloader.bot.search_handler import router as search_router
+from telegram_video_downloader.bot.middleware import RequestIdMiddleware
+from telegram_video_downloader.core.config import settings
+from telegram_video_downloader.core.limiter import limiter
+from telegram_video_downloader.core.provider_factory import get_provider
+from telegram_video_downloader.core.request_context import REQUEST_ID_VAR
+from telegram_video_downloader.searcher.youtube_search import YouTubeSearch
 
 
 class RequestIdFilter(logging.Filter):
     """A logging filter to inject the request_id from a context variable."""
 
-    def filter(self, record):
+    def filter(self, record: logging.LogRecord) -> bool:
         record.request_id = REQUEST_ID_VAR.get()
         return True
 
 
-async def main():
+async def main() -> None:
     """
     The main entry point for the bot application.
     """
@@ -43,21 +43,18 @@ async def main():
     except (ValueError, RuntimeError) as e:
         logger.error("Failed to initialize download provider: %s", e)
         return
+    
+    # Instantiate the searcher
+    searcher = YouTubeSearch()
 
     # Initialize bot and dispatcher
     bot = Bot(token=settings.BOT_TOKEN)
-    dp = Dispatcher()
+    
+    # Pass the provider, limiter and searcher instances to the handlers
+    dp = Dispatcher(provider=provider, limiter=limiter, searcher=searcher)
 
     # Register middleware for all updates
-    dp.update.middleware(RequestIdMiddleware())
-
-    # Instantiate the observer
-    observer = YouTubeSearch()
-
-    # Pass the provider, limiter and observer instances to the handlers
-    dp["provider"] = provider
-    dp["limiter"] = limiter
-    dp["observer"] = observer
+    dp.update.middleware(RequestIdMiddleware())    
 
     # Include the routers
     dp.include_router(bot_router)

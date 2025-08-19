@@ -2,11 +2,11 @@ import asyncio
 from typing import List, Optional
 
 from youtubesearchpython.__future__ import VideosSearch, Channel
-from src.core.config import settings
-from src.observers.interface import Observer, SearchResultItem
+from telegram_video_downloader.core.config import settings
+from telegram_video_downloader.searcher.interface import Searcher, SearchResultItem
 
 
-class YouTubeSearch(Observer):
+class YouTubeSearch(Searcher):
     """
     Observer implementation for searching videos on YouTube.
     """

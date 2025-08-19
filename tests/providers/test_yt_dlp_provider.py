@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from src.providers.yt_dlp_provider import YtDlpProvider
+from telegram_video_downloader.providers.yt_dlp_provider import YtDlpProvider
 
 
 @pytest.fixture

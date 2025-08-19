@@ -19,6 +19,21 @@ This spec captures what to build, how it should behave, and how you’ll know it
 
 ---
 
+## Installation
+According to `yt-dlp`:
+1. Install [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc)
+2. Login to your YouTube account to use it
+3. Open page on youtube and press on extension. Export format must be `Netscape`. Copy or save it
+4. Run `cp .env.example .env`
+5. inside .env:
+   - Set TG Bot token from @BotFather
+   - Set Path to cookies file from .3
+   
+
+## Run
+`uv run src/telegram_video_downloader/main.py`
+
+
 ## Functional requirements
 
 - **URL intake:**

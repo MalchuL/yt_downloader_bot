@@ -8,8 +8,8 @@ from pytube import YouTube
 from pytube.exceptions import PytubeError
 from pytube.streams import Stream
 
-from src.core.config import settings
-from src.providers.interface import (
+from telegram_video_downloader.core.config import settings
+from telegram_video_downloader.providers.interface import (
     DownloadProvider,
     ProgressCallback,
     QualityOption,

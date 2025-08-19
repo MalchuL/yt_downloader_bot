@@ -4,19 +4,17 @@ FROM python:3.10-slim
 # Set the working directory in the container
 WORKDIR /app
 
-# Install poetry
-RUN pip install poetry
+# Install uv
+RUN pip install uv
 
-# Copy only the files needed for dependency installation
-COPY pyproject.toml poetry.lock* ./
+# Copy pyproject.toml
+COPY pyproject.toml ./
 
 # Install project dependencies
-# --no-root is important to not install the project itself, just the dependencies
-# The project will be mounted as a volume in docker-compose
-RUN poetry install --no-root --no-dev
+RUN uv pip install .
 
 # Copy the rest of the application's code
 COPY ./src /app/src
 
 # Command to run the application
-CMD ["poetry", "run", "python", "src/main.py"]
+CMD ["python", "src/main.py"]

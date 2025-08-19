@@ -4,7 +4,7 @@ from typing import Any, Awaitable, Callable, Dict
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
 
-from src.core.request_context import REQUEST_ID_VAR
+from telegram_video_downloader.core.request_context import REQUEST_ID_VAR
 
 
 class RequestIdMiddleware(BaseMiddleware):

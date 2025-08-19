@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from src.providers.pytube_provider import PytubeProvider, YOUTUBE_URL_PATTERN
+from telegram_video_downloader.providers.pytube_provider import PytubeProvider, YOUTUBE_URL_PATTERN
 
 
 @pytest.fixture

@@ -35,7 +35,10 @@ class Settings(BaseSettings):
 
     # Provider-specific settings (example)
     YTDLP_PATH: Optional[str] = "yt-dlp"
+    YTDLP_COOKIES_FILE: Optional[str] = "www.youtube.com_cookies.txt"
+    YTDLP_SAVE_FOLDER: Optional[str] = "/tmp/yt-dlp"
 
+    # Rate limiting
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

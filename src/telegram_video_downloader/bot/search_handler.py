@@ -3,13 +3,13 @@ from aiogram import Router, F, Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message, CallbackQuery
-from src.observers.interface import Observer, SearchResultItem
-from src.bot.keyboards import (
+from telegram_video_downloader.searcher.interface import Searcher, SearchResultItem
+from telegram_video_downloader.bot.keyboards import (
     create_video_keyboard,
     create_pagination_keyboard,
     SearchCallback,
 )
-from src.core.config import settings
+from telegram_video_downloader.core.config import settings
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -31,14 +31,14 @@ def format_single_search_result(item: SearchResultItem, is_expanded: bool) -> st
     return text
 
 
-async def handle_search(message: Message, bot: Bot, observer: Observer, state: FSMContext):
+async def handle_search(message: Message, bot: Bot, searcher: Searcher, state: FSMContext) -> None:
     query = message.text
     await state.set_state(SearchState.searching)
     await state.set_data({"query": query})
 
     status_msg = await message.reply(f"Searching for: `{query}`...")
 
-    results = await observer.search(query, page=1)
+    results = await searcher.search(query, page=1)
     if not results:
         await status_msg.edit_text("No results found.")
         await state.clear()
@@ -72,14 +72,14 @@ async def handle_search(message: Message, bot: Bot, observer: Observer, state: F
 
 @router.callback_query(SearchCallback.filter(F.action.in_(["prev", "next"])))
 async def pagination_callback_handler(
-    query: CallbackQuery, callback_data: SearchCallback, state: FSMContext, observer: Observer, bot: Bot
-):
+    query: CallbackQuery, callback_data: SearchCallback, state: FSMContext, searcher: Searcher, bot: Bot
+) -> None:
     await query.answer()
     data = await state.get_data()
     search_query = data.get("query")
     page = callback_data.page
 
-    results = await observer.search(search_query, page=page)
+    results = await searcher.search(search_query, page=page)
     total_pages = data.get("total_pages", 1)
 
     await state.update_data({"page": page, "results": [r.__dict__ for r in results]})
@@ -106,7 +106,7 @@ async def pagination_callback_handler(
 @router.callback_query(SearchCallback.filter(F.action.in_(["expand", "collapse"])))
 async def expand_collapse_callback_handler(
     query: CallbackQuery, callback_data: SearchCallback, state: FSMContext
-):
+) -> None:
     await query.answer()
     data = await state.get_data()
     results_data = data.get("results", [])
@@ -126,6 +126,6 @@ async def expand_collapse_callback_handler(
 
 
 @router.callback_query(SearchCallback.filter(F.action == "download"))
-async def download_callback_handler(query: CallbackQuery):
+async def download_callback_handler(query: CallbackQuery) -> None:
     await query.answer()
     await query.message.answer(f"Please wait while I process your download request for:\n{query.data}")

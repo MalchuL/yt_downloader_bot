@@ -1,8 +1,8 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from src.bot.handlers import start_handler, help_handler, health_handler
-from src.core.config import settings
+from telegram_video_downloader.bot.handlers import start_handler, help_handler, health_handler
+from telegram_video_downloader.core.config import settings
 
 
 @pytest.mark.asyncio

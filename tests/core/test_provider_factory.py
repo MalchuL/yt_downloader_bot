@@ -1,9 +1,9 @@
 import pytest
 from unittest.mock import patch
 
-from src.core import config
-from src.core.provider_factory import get_provider
-from src.providers.interface import DownloadProvider
+from telegram_video_downloader.core import config
+from telegram_video_downloader.core.provider_factory import get_provider
+from telegram_video_downloader.providers.interface import DownloadProvider
 
 
 # Define mock provider classes for isolated testing.

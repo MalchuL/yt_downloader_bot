@@ -1,12 +1,12 @@
 from typing import Type
 
-from src.core.config import settings
-from src.providers.interface import DownloadProvider
+from telegram_video_downloader.core.config import settings
+from telegram_video_downloader.providers.interface import DownloadProvider
 
 # Import all provider modules here so the factory can find them.
 # This is a simple approach for auto-discovery.
-from src.providers import yt_dlp_provider  # noqa: F401
-from src.providers import pytube_provider  # noqa: F401
+from telegram_video_downloader.providers import yt_dlp_provider  # noqa: F401
+from telegram_video_downloader.providers import pytube_provider  # noqa: F401
 
 
 def _get_provider_class(provider_name: str) -> Type[DownloadProvider]:

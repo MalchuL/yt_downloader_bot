@@ -4,13 +4,14 @@ import uuid
 from typing import Any, Dict, Iterable, Optional
 
 import yt_dlp
-from src.core.config import settings
-from src.providers.interface import (
+from telegram_video_downloader.core.config import settings
+from telegram_video_downloader.providers.interface import (
     DownloadProvider,
     ProgressCallback,
     QualityOption,
     VideoMeta,
 )
+from telegram_video_downloader.providers.youtube_dl_wrapper import YoutubeDLWrapper
 
 logger = logging.getLogger(__name__)
 
@@ -21,13 +22,30 @@ class YtDlpProvider(DownloadProvider):
     """
 
     name = "yt_dlp"
-    _ydl_opts_base: Dict[str, Any] = {"quiet": True, "noplaylist": True}
+    _ydl_opts_base: Dict[str, Any] = {
+        "quiet": True,
+        "noplaylist": True,
+        "cookiefile": settings.YTDLP_COOKIES_FILE,
+        "cachedir": settings.YTDLP_SAVE_FOLDER,
+    }
+    TMP_DIR = settings.DOWNLOAD_TEMP_DIR
 
     def healthcheck(self) -> bool:
         """Checks if the yt-dlp library is installed and usable."""
         try:
-            with yt_dlp.YoutubeDL(self._ydl_opts_base) as ydl:
-                pass
+            if not settings.YTDLP_COOKIES_FILE:
+                logger.error("[%s] Cookies file not configured", self.name)
+                return False
+                
+            if not os.path.exists(settings.YTDLP_COOKIES_FILE):
+                logger.error("[%s] Cookies file not found: %s", self.name, settings.YTDLP_COOKIES_FILE)
+                return False
+            
+            # Test wrapper initialization
+            wrapper = YoutubeDLWrapper(
+                self._ydl_opts_base,
+                temp_dir=self.TMP_DIR
+            )
             logger.info("[%s] Health check passed.", self.name)
             return True
         except Exception as e:
@@ -40,8 +58,11 @@ class YtDlpProvider(DownloadProvider):
 
     def _extract_info(self, url: str) -> Dict[str, Any]:
         """Helper to extract video info using yt-dlp."""
-        with yt_dlp.YoutubeDL(self._ydl_opts_base) as ydl:
-            return ydl.extract_info(url, download=False)
+        wrapper = YoutubeDLWrapper(
+            self._ydl_opts_base,
+            temp_dir=self.TMP_DIR
+        )
+        return wrapper.extract_info(url, download=False)
 
     def get_metadata(self, url: str) -> VideoMeta:
         """Fetches video metadata."""
@@ -59,7 +80,10 @@ class YtDlpProvider(DownloadProvider):
         Lists available video qualities, prioritizing progressive MP4 streams.
         A "Best" option is always provided.
         """
+        logger.info("[%s] Listing qualities for %s", self.name, url)
+        logger.info("[%s] Cookies file: %s", self.name, self._ydl_opts_base.get("cookiefile"))
         info = self._extract_info(url)
+        logger.info("[%s] Info: %s", self.name, info)
         formats = info.get("formats", [])
 
         # Filter for progressive mp4 streams (video+audio)
@@ -125,7 +149,7 @@ class YtDlpProvider(DownloadProvider):
         progress_hooks = []
         if on_progress:
 
-            def hook(d: Dict[str, Any]):
+            def hook(d: Dict[str, Any]) -> None:
                 if d["status"] == "downloading":
                     total_bytes = d.get("total_bytes") or d.get("total_bytes_estimate")
                     if total_bytes:
@@ -143,8 +167,11 @@ class YtDlpProvider(DownloadProvider):
             "merge_output_format": "mp4",
         }
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+        wrapper = YoutubeDLWrapper(
+            ydl_opts,
+            temp_dir=self.TMP_DIR
+        )
+        wrapper.download([url])
 
         return output_filename
 

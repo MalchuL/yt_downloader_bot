@@ -4,18 +4,21 @@ import os
 import re
 import time
 from typing import List
+import uuid
 
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, FSInputFile, Message
 
-from src.bot.keyboards import QualityCallback, create_quality_keyboard
-from src.core.config import settings
-from src.core.limiter import ConcurrencyLimiter
-from src.providers.interface import DownloadProvider, QualityOption
+from telegram_video_downloader.bot.keyboards import QualityCallback, create_quality_keyboard
+from telegram_video_downloader.core.config import settings
+from telegram_video_downloader.core.limiter import ConcurrencyLimiter
+from telegram_video_downloader.providers.interface import DownloadProvider, QualityOption
+from telegram_video_downloader.bot.search_handler import handle_search
+from telegram_video_downloader.searcher.interface import Searcher
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -30,14 +33,14 @@ class DownloadState(StatesGroup):
 
 
 @router.message(CommandStart())
-async def start_handler(message: Message):
+async def start_handler(message: Message) -> None:
     await message.answer(
         "Welcome! Send me a video link (e.g., from YouTube) and I'll download it for you."
     )
 
 
 @router.message(Command("help"))
-async def help_handler(message: Message):
+async def help_handler(message: Message) -> None:
     await message.answer(
         "Supported sites depend on the configuration.\n"
         "Just send a link. I'll ask for the quality you want.\n"
@@ -47,7 +50,7 @@ async def help_handler(message: Message):
 
 
 @router.message(Command("health"))
-async def health_handler(message: Message, provider: DownloadProvider):
+async def health_handler(message: Message, provider: DownloadProvider) -> None:
     """
     Checks the health of the download provider.
     """
@@ -57,9 +60,6 @@ async def health_handler(message: Message, provider: DownloadProvider):
         await message.answer(f"Provider '{provider.name}' is unhealthy.")
 
 
-from src.bot.search_handler import handle_search
-from src.observers.interface import Observer
-
 
 @router.message(F.text)
 async def message_handler(
@@ -68,8 +68,8 @@ async def message_handler(
     provider: DownloadProvider,
     bot: Bot,
     limiter: ConcurrencyLimiter,
-    observer: Observer,
-):
+    searcher: Searcher,
+) -> None:
     if limiter.chat_semaphores[message.chat.id].locked():
         await message.reply(
             "You already have an active download in this chat. Please wait for it to complete."
@@ -78,7 +78,7 @@ async def message_handler(
 
     match = URL_PATTERN.search(message.text)
     if not match:
-        await handle_search(message, bot, observer, state)
+        await handle_search(message, bot, searcher, state)
         return
 
     url = match.group(0)
@@ -109,13 +109,13 @@ async def message_handler(
             {
                 "url": url,
                 "qualities": [q.__dict__ for q in qualities],
-                "status_message_id": status_msg.id,
+                "status_message_id": status_msg.message_id,
             }
         )
 
         asyncio.create_task(
             selection_timeout(
-                message.chat.id, status_msg.id, state, provider, bot, limiter
+                message.chat.id, status_msg.message_id, state, provider, bot, limiter
             )
         )
 
@@ -138,7 +138,7 @@ async def quality_callback_handler(
     provider: DownloadProvider,
     bot: Bot,
     limiter: ConcurrencyLimiter,
-):
+) -> None:
     await state.set_state(DownloadState.downloading)
 
     data = await state.get_data()
@@ -180,7 +180,7 @@ async def selection_timeout(
     provider: DownloadProvider,
     bot: Bot,
     limiter: ConcurrencyLimiter,
-):
+) -> None:
     await asyncio.sleep(settings.SELECTION_TIMEOUT_SEC)
 
     if await state.get_state() != DownloadState.choosing_quality:
@@ -220,23 +220,10 @@ async def download_and_send_video(
     provider: DownloadProvider,
     state: FSMContext,
     limiter: ConcurrencyLimiter,
-):
+) -> None:
     last_update_time = 0
     downloaded_file_path = None
 
-    async def progress_callback(progress: float, downloaded_bytes: int):
-        nonlocal last_update_time
-        now = time.time()
-        if now - last_update_time < 3:
-            return
-
-        try:
-            await bot.edit_message_text(
-                f"Downloading: {progress:.0%}", chat_id=chat_id, message_id=message_id
-            )
-            last_update_time = now
-        except TelegramBadRequest:
-            logger.warning("Failed to update progress message for chat %d.", chat_id)
 
     async with limiter.limit(chat_id):
         try:
@@ -259,7 +246,6 @@ async def download_and_send_video(
                     provider.download,
                     url=url,
                     quality=quality,
-                    on_progress=progress_callback,
                 )
 
                 file_size = os.path.getsize(downloaded_file_path)
@@ -285,8 +271,8 @@ async def download_and_send_video(
                     "Download complete. Uploading to Telegram...", chat_id, message_id
                 )
                 caption = f"{metadata.title}\nQuality: {quality.label}, Provider: {provider.name}"
-                with open(downloaded_file_path, "rb") as video_file:
-                    await bot.send_video(chat_id, video_file, caption=caption)
+                
+                await bot.send_video(chat_id, FSInputFile(downloaded_file_path, "video" + str(uuid.uuid4()) + os.path.splitext(downloaded_file_path)[1]), caption=caption)
 
                 await bot.delete_message(chat_id, message_id)
                 return

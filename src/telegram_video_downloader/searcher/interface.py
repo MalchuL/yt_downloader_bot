@@ -20,9 +20,9 @@ class SearchResultItem:
     duration: str
 
 
-class Observer(ABC):
+class Searcher(ABC):
     """
-    Abstract base class for a search observer.
+    Abstract base class for a search engine.
     """
 
     @abstractmethod
