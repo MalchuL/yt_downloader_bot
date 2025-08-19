@@ -18,7 +18,17 @@ class QualityCallback(CallbackData, prefix="quality"):
 class SearchCallback(CallbackData, prefix="search"):
     action: str  # "prev", "next", "expand", "collapse", "download"
     page: int
-    video_url: str = ""
+    url_id: str = ""  # Short identifier for the video URL
+
+    @classmethod
+    def encode_url(cls, url: str) -> str:
+        """Encode URL to avoid callback data separator conflicts"""
+        return url.replace(":", "_COLON_")
+    
+    @classmethod
+    def decode_url(cls, encoded_url: str) -> str:
+        """Decode URL back to original form"""
+        return encoded_url.replace("_COLON_", ":")
 
 
 def create_quality_keyboard(qualities: Iterable[QualityOption]) -> InlineKeyboardMarkup:
@@ -42,19 +52,24 @@ def create_quality_keyboard(qualities: Iterable[QualityOption]) -> InlineKeyboar
     return builder.as_markup()
 
 
-def create_video_keyboard(video_url: str, page: int, is_expanded: bool) -> InlineKeyboardMarkup:
+def create_video_keyboard(url_id: str, page: int, is_expanded: bool) -> InlineKeyboardMarkup:
     """
     Creates an inline keyboard for a single video result.
+    
+    :param url_id: Short identifier for the video URL
+    :param page: Current page number
+    :param is_expanded: Whether the description is expanded
+    :return: Keyboard markup
     """
     builder = InlineKeyboardBuilder()
     action = "collapse" if is_expanded else "expand"
     builder.button(
         text="Expand Description" if not is_expanded else "Collapse Description",
-        callback_data=SearchCallback(action=action, page=page, video_url=video_url),
+        callback_data=SearchCallback(action=action, page=page, url_id=url_id),
     )
     builder.button(
         text="Download",
-        callback_data=SearchCallback(action="download", page=page, video_url=video_url),
+        callback_data=SearchCallback(action="download", page=page, url_id=url_id),
     )
     builder.adjust(2)
     return builder.as_markup()
