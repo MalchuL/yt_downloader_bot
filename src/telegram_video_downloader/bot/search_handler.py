@@ -3,7 +3,7 @@ from aiogram import Router, F, Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message, CallbackQuery
-from telegram_video_downloader.searcher.interface import Searcher, SearchResultItem
+from telegram_video_downloader.searcher.searcher import Searcher, SearchResultItem
 from telegram_video_downloader.bot.keyboards import (
     create_video_keyboard,
     create_pagination_keyboard,

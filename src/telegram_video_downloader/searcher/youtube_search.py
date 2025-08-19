@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from youtubesearchpython.__future__ import VideosSearch, Channel
 from telegram_video_downloader.core.config import settings
-from telegram_video_downloader.searcher.interface import Searcher, SearchResultItem
+from telegram_video_downloader.searcher.searcher import Searcher, SearchResultItem
 
 
 class YouTubeSearch(Searcher):

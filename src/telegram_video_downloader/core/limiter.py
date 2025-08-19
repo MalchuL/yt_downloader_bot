@@ -1,7 +1,7 @@
 import asyncio
 from collections import defaultdict
 from contextlib import asynccontextmanager
-from typing import Dict
+from typing import AsyncGenerator, Dict
 
 from telegram_video_downloader.core.config import settings
 
@@ -20,7 +20,7 @@ class ConcurrencyLimiter:
         )
 
     @asynccontextmanager
-    async def limit(self, chat_id: int):
+    async def limit(self, chat_id: int) -> AsyncGenerator[None, None]:
         """
         An async context manager to enforce concurrency limits.
         """

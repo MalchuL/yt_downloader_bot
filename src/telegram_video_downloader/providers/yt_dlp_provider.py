@@ -5,13 +5,13 @@ from typing import Any, Dict, Iterable, Optional
 
 import yt_dlp
 from telegram_video_downloader.core.config import settings
-from telegram_video_downloader.providers.interface import (
+from telegram_video_downloader.providers.provider import (
     DownloadProvider,
     ProgressCallback,
     QualityOption,
     VideoMeta,
 )
-from telegram_video_downloader.providers.youtube_dl_wrapper import YoutubeDLWrapper
+from telegram_video_downloader.providers.utils.youtube_dl_wrapper import YoutubeDLWrapper
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,7 @@ class YtDlpProvider(DownloadProvider):
         logger.info("[%s] Listing qualities for %s", self.name, url)
         logger.info("[%s] Cookies file: %s", self.name, self._ydl_opts_base.get("cookiefile"))
         info = self._extract_info(url)
-        logger.info("[%s] Info: %s", self.name, info)
+        logger.debug("[%s] Info: %s", self.name, info)
         formats = info.get("formats", [])
 
         # Filter for progressive mp4 streams (video+audio)

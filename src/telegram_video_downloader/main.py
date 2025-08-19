@@ -11,6 +11,7 @@ from telegram_video_downloader.core.limiter import limiter
 from telegram_video_downloader.core.provider_factory import get_provider
 from telegram_video_downloader.core.request_context import REQUEST_ID_VAR
 from telegram_video_downloader.searcher.youtube_search import YouTubeSearch
+from telegram_video_downloader.splitter.splitter_factory import get_splitter
 
 
 class RequestIdFilter(logging.Filter):
@@ -46,12 +47,17 @@ async def main() -> None:
     
     # Instantiate the searcher
     searcher = YouTubeSearch()
+    
+    # Instantiate the splitter
+    splitter = get_splitter()
+    logger.info("Using splitter: %s", settings.SPLITTER_PROVIDER)
 
     # Initialize bot and dispatcher
     bot = Bot(token=settings.BOT_TOKEN)
     
     # Pass the provider, limiter and searcher instances to the handlers
-    dp = Dispatcher(provider=provider, limiter=limiter, searcher=searcher)
+    dp = Dispatcher(provider=provider, limiter=limiter, 
+                    searcher=searcher, splitter=splitter)
 
     # Register middleware for all updates
     dp.update.middleware(RequestIdMiddleware())    

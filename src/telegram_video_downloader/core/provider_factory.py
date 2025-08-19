@@ -1,7 +1,7 @@
 from typing import Type
 
 from telegram_video_downloader.core.config import settings
-from telegram_video_downloader.providers.interface import DownloadProvider
+from telegram_video_downloader.providers.provider import DownloadProvider
 
 # Import all provider modules here so the factory can find them.
 # This is a simple approach for auto-discovery.

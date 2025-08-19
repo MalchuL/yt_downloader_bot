@@ -9,7 +9,7 @@ from pytube.exceptions import PytubeError
 from pytube.streams import Stream
 
 from telegram_video_downloader.core.config import settings
-from telegram_video_downloader.providers.interface import (
+from telegram_video_downloader.providers.provider import (
     DownloadProvider,
     ProgressCallback,
     QualityOption,

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+from pathlib import Path
 import re
 import time
 from typing import List
@@ -16,9 +17,10 @@ from aiogram.types import CallbackQuery, FSInputFile, Message
 from telegram_video_downloader.bot.keyboards import QualityCallback, create_quality_keyboard
 from telegram_video_downloader.core.config import settings
 from telegram_video_downloader.core.limiter import ConcurrencyLimiter
-from telegram_video_downloader.providers.interface import DownloadProvider, QualityOption
+from telegram_video_downloader.providers.provider import DownloadProvider, QualityOption
 from telegram_video_downloader.bot.search_handler import handle_search
-from telegram_video_downloader.searcher.interface import Searcher
+from telegram_video_downloader.searcher.searcher import Searcher
+from telegram_video_downloader.splitter.splitter import Splitter
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -26,6 +28,7 @@ router = Router()
 URL_PATTERN = re.compile(r"https?:\/\/[^\s]+")
 MAX_FILESIZE_BYTES = settings.MAX_TELEGRAM_FILESIZE_MB * 1024 * 1024
 
+MAX_FILESIZE_MB = settings.MAX_TELEGRAM_FILESIZE_MB
 
 class DownloadState(StatesGroup):
     choosing_quality = State()
@@ -69,6 +72,7 @@ async def message_handler(
     bot: Bot,
     limiter: ConcurrencyLimiter,
     searcher: Searcher,
+    splitter: Splitter,
 ) -> None:
     if limiter.chat_semaphores[message.chat.id].locked():
         await message.reply(
@@ -115,7 +119,7 @@ async def message_handler(
 
         asyncio.create_task(
             selection_timeout(
-                message.chat.id, status_msg.message_id, state, provider, bot, limiter
+                message.chat.id, status_msg.message_id, state, provider, bot, limiter, splitter
             )
         )
 
@@ -138,6 +142,7 @@ async def quality_callback_handler(
     provider: DownloadProvider,
     bot: Bot,
     limiter: ConcurrencyLimiter,
+    splitter: Splitter,
 ) -> None:
     await state.set_state(DownloadState.downloading)
 
@@ -170,6 +175,7 @@ async def quality_callback_handler(
         provider=provider,
         state=state,
         limiter=limiter,
+        splitter=splitter,
     )
 
 
@@ -180,6 +186,7 @@ async def selection_timeout(
     provider: DownloadProvider,
     bot: Bot,
     limiter: ConcurrencyLimiter,
+    splitter: Splitter,
 ) -> None:
     await asyncio.sleep(settings.SELECTION_TIMEOUT_SEC)
 
@@ -207,7 +214,7 @@ async def selection_timeout(
         return
 
     await download_and_send_video(
-        bot, chat_id, message_id, url, qualities, provider, state, limiter
+        bot, chat_id, message_id, url, qualities, provider, state, limiter, splitter
     )
 
 
@@ -220,9 +227,11 @@ async def download_and_send_video(
     provider: DownloadProvider,
     state: FSMContext,
     limiter: ConcurrencyLimiter,
+    splitter: Splitter,
 ) -> None:
     last_update_time = 0
     downloaded_file_path = None
+    files_to_remove = []
 
 
     async with limiter.limit(chat_id):
@@ -247,32 +256,20 @@ async def download_and_send_video(
                     url=url,
                     quality=quality,
                 )
-
+                files_to_remove.append(downloaded_file_path)
                 file_size = os.path.getsize(downloaded_file_path)
-                if file_size > MAX_FILESIZE_BYTES:
-                    os.remove(downloaded_file_path)
-                    downloaded_file_path = None
-
-                    is_last_quality = i == len(qualities_to_try) - 1
-                    if settings.ALLOW_QUALITY_FALLBACK and not is_last_quality:
-                        await bot.edit_message_text(
-                            f"'{quality.label}' quality is too large ({file_size / 1024**2:.1f}MB). Trying next best...",
-                            chat_id=chat_id,
-                            message_id=message_id,
-                        )
-                        await asyncio.sleep(2)
-                        continue
-                    else:
-                        raise IOError(
-                            f"'{quality.label}' quality is too large ({file_size / 1024**2:.1f}MB) and no other qualities are available."
-                        )
+                if file_size < MAX_FILESIZE_MB:
+                    splitted_files : List[str | Path] = [downloaded_file_path]
+                else:
+                    splitted_files : List[str | Path] = splitter.split_by_size(downloaded_file_path, output_dir=settings.DOWNLOAD_TEMP_DIR, size_mb=MAX_FILESIZE_MB)
+                    files_to_remove.extend(splitted_files)
 
                 await bot.edit_message_text(
                     "Download complete. Uploading to Telegram...", chat_id, message_id
                 )
-                caption = f"{metadata.title}\nQuality: {quality.label}, Provider: {provider.name}"
-                
-                await bot.send_video(chat_id, FSInputFile(downloaded_file_path, "video" + str(uuid.uuid4()) + os.path.splitext(downloaded_file_path)[1]), caption=caption)
+                for i, file_path in enumerate(splitted_files):
+                    caption = f"{metadata.title}\nQuality: {quality.label}, File: {i+1}/{len(splitted_files)}"
+                    await bot.send_video(chat_id, FSInputFile(file_path, "video" + str(uuid.uuid4()) + os.path.splitext(file_path)[1]), caption=caption)
 
                 await bot.delete_message(chat_id, message_id)
                 return
@@ -297,11 +294,12 @@ async def download_and_send_video(
             except TelegramBadRequest:
                 pass
         finally:
-            if downloaded_file_path and os.path.exists(downloaded_file_path):
-                os.remove(downloaded_file_path)
-                logger.info(
-                    "Cleaned up temporary file %s for chat %d",
-                    downloaded_file_path,
-                    chat_id,
-                )
+            for file_path in files_to_remove:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    logger.info(
+                        "Cleaned up temporary file %s for chat %d",
+                        file_path,
+                        chat_id,
+                    )
             await state.clear()

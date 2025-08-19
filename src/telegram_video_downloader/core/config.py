@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     # Core bot settings
     BOT_TOKEN: Optional[str] = None
     DOWNLOADER_PROVIDER: str = "yt_dlp"
+    SPLITTER_PROVIDER: str = "ffmpeg"
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
 
     # Filesystem and download behavior
@@ -24,7 +25,7 @@ class Settings(BaseSettings):
     PER_CHAT_CONCURRENCY: int = 1
 
     # Telegram limits
-    MAX_TELEGRAM_FILESIZE_MB: int = 48  # Default to slightly under 50MB for safety
+    MAX_TELEGRAM_FILESIZE_MB: int = 40  # Default to slightly under 50MB for safety
 
     # Search settings
     YOUTUBE_SEARCH_RESULTS_LIMIT: int = 5
