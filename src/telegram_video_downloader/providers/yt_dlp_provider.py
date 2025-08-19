@@ -90,12 +90,14 @@ class YtDlpProvider(DownloadProvider):
         progressive_mp4 = [
             f
             for f in formats
-            if f.get("vcodec") != "none"
-            and f.get("acodec") != "none"
-            and f.get("ext") == "mp4"
+            if f.get("vcodec") != "none" and f.get("acodec") != "none"
+            and f.get("ext") in ["mp4", "webm"]
         ]
-        progressive_mp4.sort(key=lambda f: (f.get("height", 0), f.get("tbr", 0)), reverse=True)
+        
+        # TODO add separated downloading of video and audio and merge them after, because yt-dlp doesn't support merging them in one stream
+        progressive_mp4.sort(key=lambda f: (f.get("format_note"), f.get("height", 0), f.get("tbr", 0)), reverse=True)
 
+        
         qualities = []
         if progressive_mp4:
             best_format = progressive_mp4[0]
@@ -118,7 +120,7 @@ class YtDlpProvider(DownloadProvider):
                     qualities.append(
                         QualityOption(
                             itag=f["format_id"],
-                            label=f"{height}p",
+                            label=f["format_note"],
                             height=height,
                             width=f.get("width"),
                         )
