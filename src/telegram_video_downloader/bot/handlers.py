@@ -64,7 +64,7 @@ async def health_handler(message: Message, provider: DownloadProvider) -> None:
 
 
 
-@router.message(F.text)
+@router.message(F.text | F.caption)
 async def message_handler(
     message: Message,
     state: FSMContext,
@@ -80,7 +80,8 @@ async def message_handler(
         )
         return
 
-    match = URL_PATTERN.search(message.text)
+    match = URL_PATTERN.search(message.text or message.caption or "")
+    print(message.text, message.caption, match)
     if not match:
         await handle_search(message, bot, searcher, state)
         return

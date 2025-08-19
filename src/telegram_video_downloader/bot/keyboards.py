@@ -67,10 +67,10 @@ def create_video_keyboard(url_id: str, page: int, is_expanded: bool) -> InlineKe
         text="Expand Description" if not is_expanded else "Collapse Description",
         callback_data=SearchCallback(action=action, page=page, url_id=url_id),
     )
-    builder.button(
-        text="Download",
-        callback_data=SearchCallback(action="download", page=page, url_id=url_id),
-    )
+    # builder.button(
+    #     text="Download",
+    #     callback_data=SearchCallback(action="download", page=page, url_id=url_id),
+    # )
     builder.adjust(2)
     return builder.as_markup()
 

@@ -30,6 +30,7 @@ def format_single_search_result(item: SearchResultItem, is_expanded: bool) -> st
         text += f"📝 {item.video_description}"
     else:
         text += f"📝 {item.video_description[:100]}..."
+    text += f"\n\nLink: {item.video_url}"
     return text
 
 
@@ -89,6 +90,10 @@ async def handle_search(message: Message, bot: Bot, searcher: Searcher, state: F
             except Exception as e:
                 logger.error(f"Failed to send search result: {e}")
                 continue
+        await bot.send_message(
+            chat_id=chat_id,
+            text="Forward me link or message with video to download it",
+        )
 
     if total_pages > 1:
         try:
