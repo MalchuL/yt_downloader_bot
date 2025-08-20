@@ -270,7 +270,23 @@ async def download_and_send_video(
                 )
                 for i, file_path in enumerate(splitted_files):
                     caption = f"{metadata.title}\nQuality: {quality.label}, File: {i+1}/{len(splitted_files)}"
-                    await bot.send_video(chat_id, FSInputFile(file_path, "video" + str(uuid.uuid4()) + os.path.splitext(file_path)[1]), caption=caption)
+                    file_id = str(uuid.uuid4())
+                    file_ext = os.path.splitext(file_path)[1]
+                    
+                    if quality.is_audio_only:
+                        await bot.send_audio(
+                            chat_id,
+                            FSInputFile(file_path, f"audio{file_id}{file_ext}"),
+                            caption=caption,
+                            title=metadata.title,
+                            performer=metadata.author or "Unknown Artist"
+                        )
+                    else:
+                        await bot.send_video(
+                            chat_id,
+                            FSInputFile(file_path, f"video{file_id}{file_ext}"),
+                            caption=caption
+                        )
 
                 await bot.delete_message(chat_id, message_id)
                 return

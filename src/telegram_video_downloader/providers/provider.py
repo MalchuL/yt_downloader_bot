@@ -6,15 +6,16 @@ from typing import Callable, Iterable, Optional
 @dataclass(frozen=True)
 class QualityOption:
     """
-    Represents a single downloadable quality option for a video.
+    Represents a single downloadable quality option for a video or audio.
     """
 
     itag: str  # provider-specific identifier
-    label: str  # e.g., "1080p", "720p", "Best"
+    label: str  # e.g., "1080p", "720p", "Best", "320kbps"
     width: Optional[int] = None
     height: Optional[int] = None
     bitrate_kbps: Optional[int] = None
     is_default: bool = False
+    is_audio_only: bool = False  # True for audio-only formats
 
 
 @dataclass(frozen=True)

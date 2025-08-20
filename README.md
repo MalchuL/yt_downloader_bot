@@ -32,7 +32,9 @@ According to `yt-dlp`:
 
 ## Run
 `uv run src/telegram_video_downloader/main.py`
-
+If when running on getting quality you get error, try to update `yt-dlp` in 
+`pyproject.toml` to latest version available https://github.com/yt-dlp/yt-dlp 
+and type `uv sync`.
 
 ## Functional requirements
 

@@ -62,7 +62,10 @@ class YtDlpProvider(DownloadProvider):
             self._ydl_opts_base,
             temp_dir=self.TMP_DIR
         )
-        return wrapper.extract_info(url, download=False)
+        info = wrapper.extract_info(url, download=False)
+        if not isinstance(info, dict):
+            raise TypeError(f"Expected dict from extract_info, got {type(info)}")
+        return info
 
     def get_metadata(self, url: str) -> VideoMeta:
         """Fetches video metadata."""
@@ -77,8 +80,9 @@ class YtDlpProvider(DownloadProvider):
 
     def list_qualities(self, url: str) -> Iterable[QualityOption]:
         """
-        Lists available video qualities, prioritizing progressive MP4 streams.
-        A "Best" option is always provided.
+        Lists available video and audio qualities.
+        For video: prioritizes progressive MP4/WEBM streams
+        For audio: provides best quality audio-only options
         """
         logger.info("[%s] Listing qualities for %s", self.name, url)
         logger.info("[%s] Cookies file: %s", self.name, self._ydl_opts_base.get("cookiefile"))
@@ -86,49 +90,86 @@ class YtDlpProvider(DownloadProvider):
         logger.debug("[%s] Info: %s", self.name, info)
         formats = info.get("formats", [])
 
-        # Filter for progressive mp4 streams (video+audio)
-        progressive_mp4 = [
+        qualities = []
+
+        # Add audio-only options first
+        audio_formats = [
+            f for f in formats
+            if f.get("vcodec") == "none" 
+            and f.get("acodec") != "none"
+            and f.get("ext") in ["m4a", "mp3", "opus", "webm"]
+        ]
+        
+        if audio_formats:
+            # Sort by quality (bitrate)
+            audio_formats.sort(key=lambda f: float(f.get("abr", 0)), reverse=True)
+            best_audio = audio_formats[0]
+            
+            # Add best audio quality option
+            qualities.append(
+                QualityOption(
+                    itag="bestaudio/best",  # Use yt-dlp's format selector
+                    label="Best Audio",
+                    bitrate_kbps=int(best_audio.get("abr", 0)),
+                    is_audio_only=True,
+                    is_default=True,  # Make audio the default
+                )
+            )
+
+            # Add other unique audio qualities
+            seen_bitrates = {best_audio.get("abr")}
+            for f in audio_formats:
+                bitrate = f.get("abr")
+                if bitrate and bitrate not in seen_bitrates:
+                    qualities.append(
+                        QualityOption(
+                            itag=f["format_id"],  # Use the actual format ID
+                            label=f"Audio {int(bitrate)}kbps",
+                            bitrate_kbps=int(bitrate),
+                            is_audio_only=True,
+                        )
+                    )
+                    seen_bitrates.add(bitrate)
+
+        # Add video options
+        progressive_formats = [
             f
             for f in formats
             if f.get("vcodec") != "none" and f.get("acodec") != "none"
             and f.get("ext") in ["mp4", "webm"]
         ]
         
-        # TODO add separated downloading of video and audio and merge them after, because yt-dlp doesn't support merging them in one stream
-        progressive_mp4.sort(key=lambda f: (f.get("format_note"), f.get("height", 0), f.get("tbr", 0)), reverse=True)
-
-        
-        qualities = []
-        if progressive_mp4:
-            best_format = progressive_mp4[0]
-            # Add the "Best" quality option, marked as default
+        if progressive_formats:
+            progressive_formats.sort(key=lambda f: (f.get("height", 0), f.get("tbr", 0)), reverse=True)
+            best_video = progressive_formats[0]
+            
+            # Add best video quality option
             qualities.append(
                 QualityOption(
-                    itag=best_format["format_id"],
-                    label="Best",
-                    height=best_format.get("height"),
-                    width=best_format.get("width"),
-                    is_default=True,
+                    itag=best_video["format_id"],
+                    label="Best Video",
+                    height=best_video.get("height"),
+                    width=best_video.get("width"),
+                    is_default=not audio_formats,  # Default to video only if no audio formats
                 )
             )
 
-            # Add other unique resolutions
-            seen_heights = {best_format.get("height")}
-            for f in progressive_mp4:
+            # Add other unique video resolutions
+            seen_heights = {best_video.get("height")}
+            for f in progressive_formats:
                 height = f.get("height")
                 if height and height not in seen_heights:
                     qualities.append(
                         QualityOption(
                             itag=f["format_id"],
-                            label=f["format_note"],
+                            label=f"{height}p",
                             height=height,
                             width=f.get("width"),
                         )
                     )
                     seen_heights.add(height)
-        else:
-            # Fallback for streams without progressive MP4 (e.g., DASH)
-            # yt-dlp will merge the best available video and audio.
+        elif not qualities:  # No progressive formats and no audio formats
+            # Fallback for DASH streams
             qualities.append(
                 QualityOption(itag="bestvideo+bestaudio/best", label="Best", is_default=True)
             )
@@ -143,14 +184,16 @@ class YtDlpProvider(DownloadProvider):
         temp_dir: Optional[str] = None,
         timeout_sec: Optional[int] = None,
     ) -> str:
-        """Downloads the video to a temporary file and returns the path."""
+        """Downloads the video or audio to a temporary file and returns the path."""
         temp_dir_path = temp_dir or settings.DOWNLOAD_TEMP_DIR
         os.makedirs(temp_dir_path, exist_ok=True)
-        output_filename = os.path.join(temp_dir_path, f"dl_{uuid.uuid4().hex}.mp4")
+
+        # Choose extension based on format type
+        ext = "m4a" if quality.is_audio_only else "mp4"
+        output_filename = os.path.join(temp_dir_path, f"dl_{uuid.uuid4().hex}.{ext}")
 
         progress_hooks = []
         if on_progress:
-
             def hook(d: Dict[str, Any]) -> None:
                 if d["status"] == "downloading":
                     total_bytes = d.get("total_bytes") or d.get("total_bytes_estimate")
@@ -166,8 +209,22 @@ class YtDlpProvider(DownloadProvider):
             "format": quality.itag,
             "outtmpl": output_filename,
             "progress_hooks": progress_hooks,
-            "merge_output_format": "mp4",
         }
+
+        if quality.is_audio_only:
+            # Audio-specific options
+            ydl_opts.update({
+                "format": quality.itag,  # Use the format ID directly
+                "postprocessors": [{
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "m4a",  # Using M4A for better Telegram compatibility
+                    "preferredquality": "0",  # Best quality
+                }],
+                "extract_audio": True,
+            })
+        else:
+            # Video-specific options
+            ydl_opts["merge_output_format"] = "mp4"
 
         wrapper = YoutubeDLWrapper(
             ydl_opts,
